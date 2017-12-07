@@ -1,18 +1,16 @@
 import requests
-from urllib.request import urlopen  # to fetch the web page
-from bs4 import BeautifulSoup       # to interpret the web page
-from urllib.error import HTTPError
-from urllib.error import URLError
+from bs4 import BeautifulSoup
 import re
 import weather
 from datetime import datetime, timedelta
 import pytz
 import pyodbc
-import random
-import smtplib
 import sys
 import getpass
 import textwrap
+import random
+import time
+import smtplib
 
 
 # get user's input after validating it
@@ -57,104 +55,119 @@ def main():
     # url = "https://weather.com/weather/today/l/USMN0503:1:US"     # Everett
     # weather_url = "https://weather.com/weather/today/l/USWA0395:1:US"       # Seattle
 
-    # TODO add jitterered while loop
+    minutes = 10.0
+    seconds = 60.0
+    jitter = 0.17
+    request_rate_small = float(minutes * (1.0 - jitter))
+    request_rate_large = float(minutes * (1.0 + jitter))
+    actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
 
-    req = session.get(weather_url, headers=headers)
+    # print("Request rate small = " + str(request_rate_small))
+    # print("Request rate large = " + str(request_rate_large))
+    # print("Actual rph = " + str(actual_rph))
 
-    bs_obj = BeautifulSoup(req.text, "lxml")
-    # print(bs_obj.prettify())
+    while True:
+        start_time = time.time()
 
-    # create a hash of objects (Post classes) to hold each post
-    Weather = weather.Weather(weather_url)
+        req = session.get(weather_url, headers=headers)
 
-    div_classes = bs_obj.find_all(('div', 'p'), re.compile(r'today_nowcard-(temp)|(phrase)|(sidecar)|(timestamp)'))
+        bs_obj = BeautifulSoup(req.text, "lxml")
+        # print(bs_obj.prettify())
 
-    date_time_check = []
-    date_time_check.append(datetime(2000, 1, 1, 0, 0, 0).time())
-    date_time_check.append(datetime(2000, 1, 1, 1, 0, 0).time())
-    date_time_check.append(datetime(2000, 1, 1, 23, 0, 0).time())
-    date_time_check.append(datetime(2000, 1, 1, 23, 59, 59).time())
+        # create a hash of objects (Post classes) to hold each post
+        Weather = weather.Weather(weather_url)
 
-    # for div in div_classes:
-    #     print(div)
-    # print()
+        div_classes = bs_obj.find_all(('div', 'p'), re.compile(r'today_nowcard-(temp)|(phrase)|(sidecar)|(timestamp)'))
 
-    date_time = temp = wind = phrase = "null"
+        date_time_check = []
+        date_time_check.append(datetime(2000, 1, 1, 0, 0, 0).time())
+        date_time_check.append(datetime(2000, 1, 1, 1, 0, 0).time())
+        date_time_check.append(datetime(2000, 1, 1, 23, 0, 0).time())
+        date_time_check.append(datetime(2000, 1, 1, 23, 59, 59).time())
 
-    # get everything in from first '>' to '</a>
-    for i in range(0, len(div_classes)):
-        line = str(div_classes[i])
+        # for div in div_classes:
+        #     print(div)
+        # print()
 
-        date_time_match = re.search(r'as of<!-- --> </span><span>(.+?)</span>', line)
-        temp_match = re.search(r'temp"><span class="">(.+?)<sup>', line)
-        wind_match = re.search(r'</th><td><span class="">(.+?) </span>', line)
-        phrase_match = re.search(r'-phrase">(.+?)</div>', line)
+        date_time = temp = wind = phrase = "null"
 
-        if date_time_match:
-            date_time = date_time_match.group(1)
-            weather_time = datetime.strptime(date_time[:-4], '%I:%M %p')
-            date_time = datetime.combine(datetime.now(), weather_time.time())
+        # get everything in from first '>' to '</a>
+        for i in range(0, len(div_classes)):
+            line = str(div_classes[i])
 
-            # ensure the correct date is recorded (midnight bug)
-            if date_time_check[0] < datetime.now().time() < date_time_check[1]\
-                    and date_time_check[2] < date_time.time() < date_time_check[3]:
-                date_time = date_time - timedelta(days=1)
+            date_time_match = re.search(r'as of<!-- --> </span><span>(.+?)</span>', line)
+            temp_match = re.search(r'temp"><span class="">(.+?)<sup>', line)
+            wind_match = re.search(r'</th><td><span class="">(.+?) </span>', line)
+            phrase_match = re.search(r'-phrase">(.+?)</div>', line)
 
-            tz = pytz.timezone('America/Los_Angeles')
-            # print(datetime.now(tz=tz).replace(tzinfo=None))
-        if temp_match:
-            temp = temp_match.group(1)
-        if wind_match:
-            wind = wind_match.group(1)
-            wind = re.sub('[^0-9]', '', wind)
-        if phrase_match:
-            phrase = phrase_match.group(1)
+            if date_time_match:
+                date_time = date_time_match.group(1)
+                weather_time = datetime.strptime(date_time[:-4], '%I:%M %p')
+                date_time = datetime.combine(datetime.now(), weather_time.time())
 
-    if wind == "null":
-        wind = "0"
+                # ensure the correct date is recorded (midnight bug)
+                if date_time_check[0] < datetime.now().time() < date_time_check[1] \
+                        and date_time_check[2] < date_time.time() < date_time_check[3]:
+                    date_time = date_time - timedelta(days=1)
 
-    Weather.add(date_time, temp, wind, phrase)
-    date_time = temp = wind = phrase = ""
+                tz = pytz.timezone('America/Los_Angeles')
+                # print(datetime.now(tz=tz).replace(tzinfo=None))
+            if temp_match:
+                temp = temp_match.group(1)
+            if wind_match:
+                wind = wind_match.group(1)
+                wind = re.sub('[^0-9]', '', wind)
+            if phrase_match:
+                phrase = phrase_match.group(1)
 
-    server = db_url
-    database = 'Collector'
-    username = 'Wobey'
-    password = db_pwd
-    cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+password)
-    cursor = cnxn.cursor()
+        if wind == "null":
+            wind = "0"
 
-    for count, (key, value) in enumerate(Weather.weather.items()):
-        # if not exists (select * from Collector.guest.Weather where
-        # """)
+        Weather.add(date_time, temp, wind, phrase)
+        date_time = temp = wind = phrase = ""
 
-        sql_exists = textwrap.dedent("""select * from Collector.guest.Weather where datetime_posted = (?);""")
-        cursor.execute(sql_exists, value.date_time)
-        print("HTML = " + str(value.date_time))
+        server = db_url
+        database = 'Collector'
+        username = 'Wobey'
+        password = db_pwd
+        cnxn = pyodbc.connect(
+            'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+        cursor = cnxn.cursor()
 
-        # for count_fetch, row in enumerate(cursor.fetchone()):
-        row = cursor.fetchall()
-        if len(row) >= 1:
-            print("SQL = " + str(row))
-        else:
-            sql_insert = textwrap.dedent("""
-            insert into Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
-                values (?, ?, ?, ?, ?);""")
+        for count, (key, value) in enumerate(Weather.weather.items()):
+            sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
+            cursor.execute(sql_exists, value.date_time)
+            print("HTML = " + str(value.date_time))
 
-            cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
+            row = cursor.fetchall()
+            if len(row) >= 1:
+                print("SQL = " + str(row))
+            else:
+                sql_insert = textwrap.dedent("""
+                INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
+                    VALUES (?, ?, ?, ?, ?);""")
 
-        print(str(count + 1) + ") " + str(datetime.now()))
-        print("\t" + str(value.date_time))
-        print("\t" + value.temp)
-        print("\t" + value.wind)
-        print("\t" + value.phrase)
+                cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
 
-        try:
-            cnxn.commit()
-        except pyodbc.DatabaseError as e:
-            print("*** DatabaseError: " + str(e))
-            # TODO send email
+            print(str(count + 1) + ") " + str(datetime.now()))
+            print("\t" + str(value.date_time))
+            print("\t" + value.temp)
+            print("\t" + value.wind)
+            print("\t" + value.phrase)
 
-            pass
+            try:
+                cnxn.commit()
+            except pyodbc.DatabaseError as e:
+                print("*** DatabaseError: " + str(e))
+                # TODO send alert email
+
+                pass
+
+        elapsed = time.time() - start_time
+        if elapsed < actual_rph:
+            print(actual_rph - elapsed)
+            time.sleep(actual_rph - elapsed)
+            actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
 
 
 if __name__ == "__main__":

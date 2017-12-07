@@ -11,15 +11,16 @@ import textwrap
 import random
 import time
 import smtplib
-
+from email.mime import multipart, text
 
 # get user's input after validating it
 def get_user_input_list(arg, user_input_strings, user_input_options):
-    input_values = [""] * 4
+    input_values = [""] * 5
 
-    if len(arg) >= 3:
+    if len(arg) >= 4:
         input_values[0] = arg[1]
         input_values[1] = arg[2]
+        input_values[2] = arg[3]
 
     return list(get_valid_user_input(input_values, user_input_strings, user_input_options))
 
@@ -28,7 +29,7 @@ def get_user_input_list(arg, user_input_strings, user_input_options):
 def get_valid_user_input(input_values, user_input_strings, user_input_options):
     for x in range(0, len(input_values)):
         while re.match(user_input_options[x], input_values[x]) is None:
-            if x == 0 or x == 1:
+            if 0 < x < 3:
                 input_values[x] = input(user_input_strings[x])
             else:
                 input_values[x] = getpass.getpass(user_input_strings[x])
@@ -38,11 +39,29 @@ def get_valid_user_input(input_values, user_input_strings, user_input_options):
 
 def main():
     please_str = "Please enter a valid "
-    user_input_options = [r"^https://weather.com/weather/today/l/([0-9A-Z]+):1:US", r"(.+)", r"(.+)", r"(.+)"]
-    user_input_strings = [please_str + "weather url: ", please_str + "db url: ", please_str + "email pwd: ", please_str + "db pwd: "]
+    user_input_options = [r"^https://weather.com/weather/today/l/([0-9A-Z]+):1:US", r"(.+)", r"(.+)", r"(.+)", r"(.+)"]
+    user_input_strings = [please_str + "weather url: ", please_str + "db url: ", please_str + "email domain: ",
+                          please_str + "email pwd: ", please_str + "db pwd: "]
 
     # *rest catches the rest of the list
-    weather_url, db_url, email_pwd, db_pwd, *rest = list(get_user_input_list(sys.argv, user_input_strings, user_input_options))
+    weather_url, db_url, email_domain, email_pwd, db_pwd, *rest = list(get_user_input_list(sys.argv, user_input_strings, user_input_options))
+
+    # test email login
+    email_address_from = "yebow@comcast.net"
+    email_address_to = "wobey@uw.edu"
+
+    server = smtplib.SMTP_SSL(email_domain)
+    server.ehlo()
+    server.login(email_address_from, email_pwd)
+    server.quit()
+
+    message = multipart.MIMEMultipart()
+    message['From'] = email_address_from
+    message['To'] = email_address_to
+    message['Subject'] = "ALERT:  Weather Collector"
+    message.attach(text.MIMEText("empty", 'plain'))
+    message_text = message.as_string()
+
 
     session = requests.Session()
     headers = {"User-Agent":"Mozilla/5.0 (X11; Linux x86_64)"
@@ -159,7 +178,12 @@ def main():
                 cnxn.commit()
             except pyodbc.DatabaseError as e:
                 print("*** DatabaseError: " + str(e))
-                # TODO send alert email
+                server = smtplib.SMTP_SSL(email_domain)
+                server.ehlo()
+                server.login(email_address_from, email_pwd)
+
+                server.sendmail(email_address_from, email_address_to, message_text)
+                server.quit()
 
                 pass
 

@@ -142,8 +142,8 @@ def main():
         if wind == "null":
             wind = "0"
 
-        Weather.add(date_time, temp, wind, phrase)
-        date_time = temp = wind = phrase = ""
+        # Weather.add(date_time, temp, wind, phrase)
+        # date_time = temp = wind = phrase = "null"
 
         server = db_url
         database = 'Collector'
@@ -153,43 +153,59 @@ def main():
             'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
         cursor = cnxn.cursor()
 
-        for count, (key, value) in enumerate(Weather.weather.items()):
-            sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
-            cursor.execute(sql_exists, value.date_time)
-            print("HTML = " + str(value.date_time))
+        # for count, (key, value) in enumerate(Weather.weather.items()):
+        sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
+        cursor.execute(sql_exists, date_time)
+        # cursor.execute(sql_exists, value.date_time)
+        print("\n[scraped HTML] = " + str(date_time))
+        # print("\n[scraped HTML] = " + str(value.date_time))
 
-            row = cursor.fetchall()
-            if len(row) >= 1:
-                print("SQL = " + str(row))
-            else:
-                sql_insert = textwrap.dedent("""
-                INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
-                    VALUES (?, ?, ?, ?, ?);""")
+        row = cursor.fetchall()
 
-                cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
+        if len(row) >= 1:
+            print("[duplicate] = " + str(row))
+            # sleep for a quarter of the time to attempt a faster request
+            elapsed = time.time() - start_time
+            sleep_length = 0.25 * (actual_rph - elapsed)
+            print("[sleep] = " + str(sleep_length))
+            time.sleep(sleep_length)
+            continue
+        else:
+            print("System time = " + str(datetime.now()))
+            print("\t" + str(date_time))
+            print("\t" + temp)
+            print("\t" + wind)
+            print("\t" + phrase)
+            # print("\t" + value.phrase)print("System time = " + str(datetime.now()))
+            # print("\t" + str(value.date_time))
+            # print("\t" + value.temp)
+            # print("\t" + value.wind)
+            # print("\t" + value.phrase)
+            sql_insert = textwrap.dedent("""
+            INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
+                VALUES (?, ?, ?, ?, ?);""")
 
-            print(str(count + 1) + ") " + str(datetime.now()))
-            print("\t" + str(value.date_time))
-            print("\t" + value.temp)
-            print("\t" + value.wind)
-            print("\t" + value.phrase)
+            cursor.execute(sql_insert, datetime.now(), date_time, temp, wind, phrase)
+            # cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
 
-            try:
-                cnxn.commit()
-            except pyodbc.DatabaseError as e:
-                print("*** DatabaseError: " + str(e))
-                server = smtplib.SMTP_SSL(email_domain)
-                server.ehlo()
-                server.login(email_address_from, email_pwd)
+        date_time = temp = wind = phrase = "null"
 
-                server.sendmail(email_address_from, email_address_to, message_text)
-                server.quit()
+        try:
+            cnxn.commit()
+        except pyodbc.DatabaseError as e:
+            print("*** DatabaseError: " + str(e))
+            server = smtplib.SMTP_SSL(email_domain)
+            server.ehlo()
+            server.login(email_address_from, email_pwd)
 
-                pass
+            server.sendmail(email_address_from, email_address_to, message_text)
+            server.quit()
+
+            pass
 
         elapsed = time.time() - start_time
         if elapsed < actual_rph:
-            print(actual_rph - elapsed)
+            print("[sleep] = " + str(actual_rph - elapsed))
             time.sleep(actual_rph - elapsed)
             actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
 

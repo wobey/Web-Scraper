@@ -46,8 +46,6 @@ def main():
     # *rest catches the rest of the list
     weather_url, db_url, email_pwd, db_pwd, *rest = list(get_user_input_list(sys.argv, user_input_strings, user_input_options))
 
-    #TODO erase repo and replace with non-password
-
     session = requests.Session()
     headers = {"User-Agent":"Mozilla/5.0 (X11; Linux x86_64)"
                             "AppleWebKit/537.36 (KHTML, like Gecko)"
@@ -122,7 +120,7 @@ def main():
     database = 'Collector'
     username = 'Wobey'
     password = db_pwd
-    cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
+    cnxn = pyodbc.connect('DRIVER={ODBC Driver 13 for SQL Server};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+password)
     cursor = cnxn.cursor()
 
     for count, (key, value) in enumerate(Weather.weather.items()):

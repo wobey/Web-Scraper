@@ -75,7 +75,7 @@ def main():
     # subreddit_url = "https://reddit.com/r/Seattle/new"
     # url = "https://weather.com/weather/hourbyhour/l/98203:4:US"
 
-    minutes = 30.0
+    minutes = 60.0
     seconds = 60.0
     jitter = 0.17
     request_rate_small = float(minutes * (1.0 - jitter))
@@ -93,7 +93,7 @@ def main():
     total_run_start_time = time.time()
 
     while True:
-        print("\n\t\tTOTAL RUNTIME = " + str(time.time() - total_run_start_time))
+        print("\n\t\tTOTAL RUNTIME = " + str(time.time() - total_run_start_time) + "\n")
 
         start_time = time.time()
 
@@ -158,8 +158,6 @@ def main():
 
         for count, (key, value) in enumerate(Posts.posts.items()):
             # determine if duplicate exists (based on datetime added and username)
-
-            print("TEST***** = " + str(value.date_time))
 
             sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
             cursor.execute(sql_exists, value.date_time, value.user)

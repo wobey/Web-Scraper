@@ -1,6 +1,3 @@
-import os
-
-
 class Climate(object):
     def __init__(self, unique_id, date_time, temp, wind, phrase):
         self.unique_id = unique_id     # e.g. key id could be title + time

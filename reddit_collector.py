@@ -39,78 +39,172 @@ def get_valid_user_input(input_values, user_input_strings, user_input_options):
 
 
 def main():
+    please_str = "Please enter a valid "
+    user_input_options = [r"^https://reddit.com/r/([0-9A-Z]+)", r"(.+)", r"(.+)", r"(.+)", r"(.+)"]
+    user_input_strings = [please_str + "subreddit url: ", please_str + "db url: ", please_str + "email domain: ",
+                          please_str + "email pwd: ", please_str + "db pwd: "]
+
+    # *rest catches the rest of the list
+    subreddit_url, db_url, email_domain, email_pwd, db_pwd, *rest = list(get_user_input_list(sys.argv, user_input_strings, user_input_options))
+
+    # test email login
+    email_address_from = "yebow@comcast.net"
+    email_address_to = "wobey@uw.edu"
+
+    server = smtplib.SMTP_SSL(email_domain)
+    server.ehlo()
+    server.login(email_address_from, email_pwd)
+    server.quit()
+
+    message = multipart.MIMEMultipart()
+    message['From'] = email_address_from
+    message['To'] = email_address_to
+    message['Subject'] = "ALERT:  Reddit Collector"
+    message.attach(text.MIMEText("empty", 'plain'))
+    message_text = message.as_string()
+
+    comment_url = "r/Seattle/comments/"
+
     session = requests.Session()
     headers = {"User-Agent":"Mozilla/5.0 (X11; Linux x86_64)"
                             "AppleWebKit/537.36 (KHTML, like Gecko)"
                             "Chrome/61.0.3163.100 Safari/537.36",
                "Accept":"text/html,application/xhtml+xml,application/xml"
                         ";q=0.9,image/webp,image/apng,*/*;q=0.8"}
-    # url = "https://www.whatismybrowser.com/developers/what-http-headers-is-my-browser-sending"
-    # url = "https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending"
-    url = "https://reddit.com/r/Seattle/new"
-    # url = "http://www.pythonscraping.com/pages/page1.html"
+
+    # subreddit_url = "https://reddit.com/r/Seattle/new"
     # url = "https://weather.com/weather/hourbyhour/l/98203:4:US"
 
-    req = session.get(url, headers=headers)
+    minutes = 30.0
+    seconds = 60.0
+    jitter = 0.17
+    request_rate_small = float(minutes * (1.0 - jitter))
+    request_rate_large = float(minutes * (1.0 + jitter))
+    actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
+    duplicate_factor = 0.4
 
-    bs_obj = BeautifulSoup(req.text, "lxml")
-    print(bs_obj.prettify())
+    print("Request rate small = " + str(request_rate_small))
+    print("Request rate large = " + str(request_rate_large))
+    print("Actual request rate = " + str(actual_request_rate))
 
-    # create a hash of objects (Post classes) to hold each post
-    Posts = post.Posts(url)
+    duplicate_count = 0
+    insert_count = 0
 
-    # <a class="title may-blank "
-    # titles = bs_obj.select('a.title.may-blank')
+    total_run_start_time = time.time()
 
-    # <time class="live-timestamp" datetime="2017-12-02T23:38:46+00:00" title="Sat Dec 2 23:38:46 2017 UTC">
-    # times = bs_obj.select('live-timestamp')
+    while True:
+        print("\n\t\tTOTAL RUNTIME = " + str(time.time() - total_run_start_time))
 
-    # use this to parse all the info you need from the post
-    # <div class=" thing id
-    div_classes = bs_obj.find_all('div', attrs={'class': re.compile(r'thing$')})
-    # div_classes = bs_obj.select('[class~= thing id]')
+        start_time = time.time()
 
-    print("*****************************")
+        req = session.get(subreddit_url, headers=headers)
 
-    for div in div_classes:
-        print(div)
+        bs_obj = BeautifulSoup(req.text, "lxml")
+        print(bs_obj.prettify())
 
-    time = title = user = url = ""
-    comment_url = "r/Seattle/comments/"
+        Posts = post.Posts(subreddit_url)
 
-    # get everything in from first '>' to '</a>
-    for i in range(0, len(div_classes)):
-        line = str(div_classes[i])
+        div_classes = bs_obj.find_all('div', attrs={'class': re.compile(r'thing$')})
 
-        title_match = re.search(r'tabindex="1">(.+?)</a>', line)
-        # title_match = re.search(r'>(.+?)</a>', str(titles[i]))
-        time_match = re.search(r'data-timestamp="(.+?)"', line)
-        # time_match = re.search(r'"datetime="(.+?)"', str(times[i]))
-        user_match = re.search(r'data-author="(.+?)"', line)
-        url_match = re.search(r'href="(.+?)" rel="', line)
+        # for div in div_classes:
+        #     print(div)
+        # print()
 
-        if title_match:
-            title = title_match.group(1)
-        if time_match:
-            time = time_match.group(1)
-            time = datetime.utcfromtimestamp(int(time[:-3]))  # convert to UTC date time
-            tz = pytz.timezone('America/Los_Angeles')
-            time = pytz.utc.localize(time, is_dst=None).astimezone(tz).replace(tzinfo=None)  # convert to Seattle time
-        if user_match:
-            user = user_match.group(1)
-        if url_match:
-            url = url_match.group(1)
-            if comment_url in url:
-                url = "https://reddit.com" + url
+        title = date_time = user = url = "null"
 
-        Posts.add(time, title, user, url)
-        time = title = user = url = ""
+        for i in range(0, len(div_classes)):
+            line = str(div_classes[i])
 
-    for count, (key, value) in enumerate(Posts.posts.items()):
-        print(str(count + 1) + ") " + key)
-        print("\t" + str(value.date_time_added))
-        print("\t" + value.user)
-        print("\t" + value.url)
+            title_match = re.search(r'tabindex="1">(.+?)</a>', line)
+            # title_match = re.search(r'>(.+?)</a>', str(titles[i]))
+            time_match = re.search(r'data-timestamp="(.+?)"', line)
+            # time_match = re.search(r'"datetime="(.+?)"', str(times[i]))
+            user_match = re.search(r'data-author="(.+?)"', line)
+            url_match = re.search(r'href="(.+?)" rel="', line)
+
+            if title_match:
+                title = title_match.group(1)
+            if time_match:
+                date_time = time_match.group(1)
+                date_time = datetime.utcfromtimestamp(int(date_time[:-3]))  # convert to UTC date time
+                tz = pytz.timezone('America/Los_Angeles')
+                date_time = pytz.utc.localize(date_time, is_dst=None).astimezone(tz).replace(tzinfo=None)  # convert to Seattle time
+            if user_match:
+                user = user_match.group(1)
+            if url_match:
+                url = url_match.group(1)
+                if comment_url in url:
+                    url = "https://reddit.com" + url
+
+            Posts.add(date_time, title, user, url)
+            title = date_time = user = url = "null"
+
+        # for count, (key, value) in enumerate(Posts.posts.items()):
+        #     print(str(count + 1) + ") " + key)
+        #     print("\t" + str(value.date_time))
+        #     print("\t" + value.user)
+        #     print("\t" + value.url)
+        #     print("\t" + value.title)
+
+        server = db_url
+        database = 'Collector'
+        username = 'Wobey'
+        password = db_pwd
+        cnxn = pyodbc.connect(
+            'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+        cursor = cnxn.cursor()
+
+        duplicate = False
+
+        for count, (key, value) in enumerate(Posts.posts.items()):
+            # determine if duplicate exists
+            sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
+            cursor.execute(sql_exists, value.date_time)
+            # print("\n[scraped HTML] = " + str(value.date_time))
+            row = cursor.fetchall()
+
+            # because r/Seattle/new orders postings by time, the first duplicate should trigger a break
+            if len(row) >= 1:
+                duplicate_count += 1
+                print("[duplicate " + str(duplicate_count) + "] = " + str(row))
+
+                break
+            else:
+                sql_insert = textwrap.dedent("""
+                INSERT INTO Collector.guest.Posts(datetime_added, datetime_posted, username, url_path, title)
+                    VALUES (?, ?, ?, ?, ?);""")
+
+                cursor.execute(sql_insert, datetime.now(), value.date_time, value.user, value.url, value.title)
+                # cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
+
+                insert_count += 1
+                print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
+                print("\t" + value.title)
+                # print("\t" + str(value.date_time))
+                # print("\t" + value.user)
+                # print("\t" + value.url)
+                # print("\t" + value.title)
+
+            try:
+                cnxn.commit()
+            except pyodbc.DatabaseError as e:
+                print("*** DatabaseError: " + str(e))
+                server = smtplib.SMTP_SSL(email_domain)
+                server.ehlo()
+                server.login(email_address_from, email_pwd)
+
+                server.sendmail(email_address_from, email_address_to, message_text)
+                server.quit()
+                pass
+
+        elapsed = time.time() - start_time
+        if elapsed < actual_request_rate:
+            print("[sleep] = " + str(actual_request_rate - elapsed))
+            time.sleep(actual_request_rate - elapsed)
+            actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
+
+        # TODO free up Posts depending on memory useage
+        del Posts
 
 
 if __name__ == "__main__":

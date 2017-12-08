@@ -83,9 +83,9 @@ def main():
     actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
     duplicate_factor = 0.4
 
-    print("Request rate small = " + str(request_rate_small))
-    print("Request rate large = " + str(request_rate_large))
-    print("Actual request rate = " + str(actual_request_rate))
+    # print("Request rate small = " + str(request_rate_small))
+    # print("Request rate large = " + str(request_rate_large))
+    # print("Actual request rate = " + str(actual_request_rate))
 
     duplicate_count = 0
     insert_count = 0
@@ -100,7 +100,7 @@ def main():
         req = session.get(subreddit_url, headers=headers)
 
         bs_obj = BeautifulSoup(req.text, "lxml")
-        print(bs_obj.prettify())
+        # print(bs_obj.prettify())
 
         Posts = post.Posts(subreddit_url)
 
@@ -157,9 +157,12 @@ def main():
         duplicate = False
 
         for count, (key, value) in enumerate(Posts.posts.items()):
-            # determine if duplicate exists
-            sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
-            cursor.execute(sql_exists, value.date_time)
+            # determine if duplicate exists (based on datetime added and username)
+
+            print("TEST***** = " + str(value.date_time))
+
+            sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
+            cursor.execute(sql_exists, value.date_time, value.user)
             # print("\n[scraped HTML] = " + str(value.date_time))
             row = cursor.fetchall()
 

@@ -71,7 +71,6 @@ def main():
                         ";q=0.9,image/webp,image/apng,*/*;q=0.8"}
 
     # url = "https://reddit.com/r/Seattle/new"
-    # url = "https://weather.com/weather/today/l/USMN0503:1:US"     # Everett
     # weather_url = "https://weather.com/weather/today/l/USWA0395:1:US"       # Seattle
 
     minutes = 10.0
@@ -79,12 +78,12 @@ def main():
     jitter = 0.17
     request_rate_small = float(minutes * (1.0 - jitter))
     request_rate_large = float(minutes * (1.0 + jitter))
-    actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
-    duplicate_factor = 0.5
+    actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
+    duplicate_factor = 0.4
 
     # print("Request rate small = " + str(request_rate_small))
     # print("Request rate large = " + str(request_rate_large))
-    # print("Actual rph = " + str(actual_rph))
+    # print("Actual request rate = " + str(actual_request_rate))
 
     duplicate_count = 0
     insert_count = 0
@@ -175,7 +174,7 @@ def main():
             print("[duplicate " + str(duplicate_count) + "] = " + str(row))
             # sleep for a quarter of the time to attempt a faster request
             elapsed = time.time() - start_time
-            sleep_length = duplicate_factor * (actual_rph - elapsed)
+            sleep_length = duplicate_factor * (actual_request_rate - elapsed)
             print("[sleep] = " + str(sleep_length))
             time.sleep(sleep_length)
 
@@ -212,14 +211,13 @@ def main():
 
             server.sendmail(email_address_from, email_address_to, message_text)
             server.quit()
-
             pass
 
         elapsed = time.time() - start_time
-        if elapsed < actual_rph:
-            print("[sleep] = " + str(actual_rph - elapsed))
-            time.sleep(actual_rph - elapsed)
-            actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
+        if elapsed < actual_request_rate:
+            print("[sleep] = " + str(actual_request_rate - elapsed))
+            time.sleep(actual_request_rate - elapsed)
+            actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ import time
 import smtplib
 from email.mime import multipart, text
 
+
 # get user's input after validating it
 def get_user_input_list(arg, user_input_strings, user_input_options):
     input_values = [""] * 5
@@ -62,7 +63,6 @@ def main():
     message.attach(text.MIMEText("empty", 'plain'))
     message_text = message.as_string()
 
-
     session = requests.Session()
     headers = {"User-Agent":"Mozilla/5.0 (X11; Linux x86_64)"
                             "AppleWebKit/537.36 (KHTML, like Gecko)"
@@ -80,12 +80,20 @@ def main():
     request_rate_small = float(minutes * (1.0 - jitter))
     request_rate_large = float(minutes * (1.0 + jitter))
     actual_rph = seconds * random.uniform(request_rate_small, request_rate_large)
+    duplicate_factor = 0.5
 
     # print("Request rate small = " + str(request_rate_small))
     # print("Request rate large = " + str(request_rate_large))
     # print("Actual rph = " + str(actual_rph))
 
+    duplicate_count = 0
+    insert_count = 0
+
+    total_run_start_time = time.time()
+
     while True:
+        print("\n\t\tTOTAL RUNTIME = " + str(time.time() - total_run_start_time))
+
         start_time = time.time()
 
         req = session.get(weather_url, headers=headers)
@@ -163,15 +171,25 @@ def main():
         row = cursor.fetchall()
 
         if len(row) >= 1:
-            print("[duplicate] = " + str(row))
+            duplicate_count += 1
+            print("[duplicate " + str(duplicate_count) + "] = " + str(row))
             # sleep for a quarter of the time to attempt a faster request
             elapsed = time.time() - start_time
-            sleep_length = 0.25 * (actual_rph - elapsed)
+            sleep_length = duplicate_factor * (actual_rph - elapsed)
             print("[sleep] = " + str(sleep_length))
             time.sleep(sleep_length)
+
             continue
         else:
-            print("System time = " + str(datetime.now()))
+            sql_insert = textwrap.dedent("""
+            INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
+                VALUES (?, ?, ?, ?, ?);""")
+
+            cursor.execute(sql_insert, datetime.now(), date_time, temp, wind, phrase)
+            # cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
+
+            insert_count += 1
+            print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
             print("\t" + str(date_time))
             print("\t" + temp)
             print("\t" + wind)
@@ -181,12 +199,6 @@ def main():
             # print("\t" + value.temp)
             # print("\t" + value.wind)
             # print("\t" + value.phrase)
-            sql_insert = textwrap.dedent("""
-            INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
-                VALUES (?, ?, ?, ?, ?);""")
-
-            cursor.execute(sql_insert, datetime.now(), date_time, temp, wind, phrase)
-            # cursor.execute(sql_insert, datetime.now(), value.date_time, value.temp, value.wind, value.phrase)
 
         date_time = temp = wind = phrase = "null"
 

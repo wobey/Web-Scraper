@@ -81,7 +81,7 @@ def main():
     request_rate_small = float(minutes * (1.0 - jitter))
     request_rate_large = float(minutes * (1.0 + jitter))
     actual_request_rate = seconds * random.uniform(request_rate_small, request_rate_large)
-    duplicate_factor = 0.4
+    duplicate_factor = 0.5
 
     # print("Request rate small = " + str(request_rate_small))
     # print("Request rate large = " + str(request_rate_large))
@@ -168,6 +168,11 @@ def main():
             if len(row) >= 1:
                 duplicate_count += 1
                 print("[duplicate " + str(duplicate_count) + "] = " + str(row))
+                # sleep for a quarter of the time to attempt a faster request
+                elapsed = time.time() - start_time
+                sleep_length = duplicate_factor * (actual_request_rate - elapsed)
+                print("[sleep] = " + str(sleep_length))
+                time.sleep(sleep_length)
 
                 break
             else:

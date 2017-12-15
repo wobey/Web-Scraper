@@ -149,10 +149,17 @@ def main():
             'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
         cursor = cnxn.cursor()
 
-        # insert weather into database
         sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
-        cursor.execute(sql_exists, date_time)
         print("\n[scraped HTML] = " + str(date_time))
+
+        # insert weather into database
+        try:
+            cursor.execute(sql_exists, date_time)
+        except pyodbc.DatabaseError as e:
+            send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
+                       date_time)
+            raise e("Insert failed = " + str(date_time))
+
         row = cursor.fetchall()
 
         if len(row) >= 1:

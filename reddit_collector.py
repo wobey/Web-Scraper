@@ -62,7 +62,6 @@ def main():
     user_input_strings = [please_str + "subreddit url: ", please_str + "db url: ", please_str + "email domain: ",
                           please_str + "email pwd: ", please_str + "db pwd: "]
 
-    # *rest catches the rest of the list
     subreddit_url, db_url, email_domain, email_pwd, db_pwd, *rest = list(get_user_input_list(sys.argv, user_input_strings, user_input_options))
 
     # test email login
@@ -184,12 +183,12 @@ def main():
                 print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
                 print("\t" + value.title)
 
-            # trigger email if the insert was unsuccessful
+            # trigger email if the commit was unsuccessful
             try:
                 cnxn.commit()
             except pyodbc.DatabaseError as e:
                 send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value.title, value.date_time)
-                raise e('Insert failed.')
+                raise e('Commit failed.')
 
         elapsed = time.time() - start_time
         if elapsed < actual_request_rate and duplicate_check is False:

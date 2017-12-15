@@ -100,3 +100,5 @@ ENV/
 # mypy
 .mypy_cache/
 .idea/
+Web-Scraper.twb
+~Web-Scraper__1488.twbr

@@ -42,7 +42,7 @@ def get_valid_user_input(input_values, user_input_strings, user_input_options):
 
 
 def send_email(domain, pwd, _from, _to, message, temp, posted):
-    message.attach(text.MIMEText("temp = " + str(title) + "\nposted = " + str(posted), 'plain'))
+    message.attach(text.MIMEText("temp = " + str(temp) + "\nposted = " + str(posted), 'plain'))
     message_text = message.as_string()
 
     server = smtplib.SMTP_SSL(domain)
@@ -141,6 +141,12 @@ def main():
                     wind = "0"
             if phrase_match:
                 phrase = phrase_match.group(1)
+
+        if temp == "null" or date_time == "null":
+            send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
+                       date_time.now())
+            time.sleep(actual_request_rate)
+            continue
 
         database = 'Collector'
         username = 'Wobey'

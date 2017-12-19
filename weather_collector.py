@@ -144,7 +144,7 @@ def main():
 
         if temp == "null" or date_time == "null":
             send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
-                       date_time.now())
+                       datetime.now())
             time.sleep(actual_request_rate)
             continue
 

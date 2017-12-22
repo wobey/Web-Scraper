@@ -137,7 +137,7 @@ def main():
                 wind = wind_match.group(1)
                 wind = re.sub('[^0-9]', '', wind)
                 # handles wind being 700,000+ MPH bug
-                if wind == "null":
+                if wind == "Calm":
                     wind = "0"
             if phrase_match:
                 phrase = phrase_match.group(1)
@@ -147,6 +147,11 @@ def main():
                        datetime.now())
             time.sleep(actual_request_rate)
             continue
+
+        if wind == "null":
+            wind = "0"
+
+        print(date_time, temp, phrase, wind)
 
         database = 'Collector'
         username = 'Wobey'
@@ -164,7 +169,8 @@ def main():
         except pyodbc.DatabaseError as e:
             send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
                        date_time)
-            raise e("Insert failed = " + str(date_time))
+            print("Insert failed = " + str(date_time))
+            raise e("Insert failed")
 
         row = cursor.fetchall()
 
@@ -188,7 +194,8 @@ def main():
             except pyodbc.DatabaseError as e:
                 send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
                            date_time)
-                raise e("Insert failed = " + str(date_time))
+                print("Insert failed = " + str(date_time))
+                raise e("Insert failed")
 
             insert_count += 1
             print("[insert " + str(insert_count) + "] = " + str(datetime.now()))

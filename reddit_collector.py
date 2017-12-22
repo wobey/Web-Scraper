@@ -43,10 +43,8 @@ def get_valid_user_input(input_values, user_input_strings, user_input_options):
     return input_values
 
 
-def send_email(domain, pwd, _from, _to, message, value):
-    post_text = "title = " + value.title + "\nposted = " + str(value.date_time) + "\nuser = " + value.user + "\nurl = " \
-                + value.url + "\ncurrent time = " + str(datetime.now())
-    message.attach(text.MIMEText(post_text, 'plain'))
+def send_email(domain, pwd, _from, _to, message, title, posted):
+    message.attach(text.MIMEText("title = " + title + "\nposted = " + str(posted), 'plain'))
     message_text = message.as_string()
 
     server = smtplib.SMTP_SSL(domain)
@@ -126,9 +124,6 @@ def main():
             # parse lines looking for regular expression matches
             if title_match:
                 title = title_match.group(1)
-                # TODO convert to unicode
-                # title = title.encode('utf-8')
-                # print("**************************" + str(type(title)) + " " + title.decode('utf-8'))
             if time_match:
                 date_time = time_match.group(1)
                 date_time = datetime.utcfromtimestamp(int(date_time[:-3]))  # convert to UTC date time
@@ -149,21 +144,18 @@ def main():
         database = 'Collector'
         username = 'Wobey'
         password = db_pwd
-        # TODO try except for connection errors (ask to re-enter password)
         cnxn = pyodbc.connect(
             'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
         cursor = cnxn.cursor()
 
         # insert posts into database
         for count, (key, value) in enumerate(posts.posts.items()):
-            insert_success = True
             sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
             cursor.execute(sql_exists, value.date_time, value.user)
             row = cursor.fetchall()
 
             # because r/Seattle/new orders postings by time, the first duplicate should trigger a break
             if len(row) >= 1:
-            # if False:
                 duplicate_count += 1
                 print("[duplicate " + str(duplicate_count) + "] = " + str(row))
 
@@ -176,10 +168,6 @@ def main():
                 duplicate_check = True
                 break
             else:
-                # TODO sanitize titles (ensure no SQL injection can occur -- also further handle emojis)
-                # sql_insert = textwrap.dedent("""
-                #                 INSERT INTO Collector.guest.Posts(datetime_added, datetime_posted, username, url_path, "SPD stopped for a picture with Bike Santa 🎅👮")
-                #                     VALUES (?, ?, ?, ?, ?);""")
                 sql_insert = textwrap.dedent("""
                 INSERT INTO Collector.guest.Posts(datetime_added, datetime_posted, username, url_path, title)
                     VALUES (?, ?, ?, ?, ?);""")
@@ -188,17 +176,19 @@ def main():
                 try:
                     cursor.execute(sql_insert, datetime.now(), value.date_time, value.user, value.url, value.title)
                 except pyodbc.DatabaseError as e:
-                    insert_success = False
-                    send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value)
-                    print("\n*****  [insert failed] = " + str(value.date_time) + "\n\t" + str(value.title)
-                          + "\n\t" + value.user + "\n\t" + value.url + "\n")
+                    send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value.title, value.date_time)
+                    raise e("Insert failed = " + str(value.title))
 
-                if insert_success is True:
-                    insert_count += 1
-                    print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
-                    print("\t" + value.title)
+                insert_count += 1
+                print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
+                print("\t" + value.title)
 
-            cnxn.commit()
+            # trigger email if the commit was unsuccessful
+            try:
+                cnxn.commit()
+            except pyodbc.DatabaseError as e:
+                send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value.title, value.date_time)
+                raise e('Commit failed.')
 
         elapsed = time.time() - start_time
         if elapsed < actual_request_rate and duplicate_check is False:

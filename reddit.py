@@ -1,22 +1,15 @@
 # Author: John Fitzgerald
-# Title: reddit_collector.py
-# Date Modified: 12/27/17
+# Title: reddit.py
+# Date Modified: 1/10/18
 # Description: Leave script running to parse a subreddit's new posts, and insert them into a database.
 # An email is sent out if the insert fails.
-from bs4 import BeautifulSoup
 from datetime import datetime
-from email.mime import multipart, text
-import requests
-import re
-import post
+import time
 import pytz
+import re
 import pyodbc
-import sys
-import getpass
 import textwrap
 import random
-import time
-import smtplib
 
 
 class Post(object):
@@ -28,10 +21,12 @@ class Post(object):
 
 
 class Reddit(object):
-    def __init__(self, name):
-        self.name = name
-        self.comment_url =  "r/Seattle/comments/"
-        self.url_regex = r"^https://reddit.com/r/([0-9A-Z]+)"
+    def __init__(self):#, name):
+        self.__name__ = "Reddit"
+        # TODO make generic to all Subreddits (not just r/Seattle)
+        self.website_url = "https://reddit.com/r/Seattle/new"
+        self.comment_url = "r/Seattle/comments/"
+        self.url_regex = r"^https://reddit.com/r/([0-9a-z]+)"
 
         self.sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
         self. sql_insert = textwrap.dedent("""
@@ -51,6 +46,7 @@ class Reddit(object):
         # TODO how to properly initialize an empty???
         self.div_classes = None
         self.duplicate_check = False
+        self.insert_failure_check = False
 
         self.email_messages = list()
         self.reddit = list()
@@ -58,7 +54,7 @@ class Reddit(object):
     def set_tag(self, bs_obj):
         self.div_classes = bs_obj.find_all('div', attrs={'class': re.compile(r'thing$')})
 
-    def loop_for_posts(self):
+    def store_scraped_html(self):
         title = date_time = user = url = "null"
 
         for i in range(0, len(self.div_classes)):
@@ -93,8 +89,6 @@ class Reddit(object):
         self.reddit.append(Post(_title, _date_time, _user, _url))
 
     def insert(self, start_time, cnxn, cursor):
-        duplicate_check = False
-
         for count, entry in enumerate(self.reddit):
             insert_success = True
             cursor.execute(self.sql_exists, entry.date_time, entry.user)
@@ -107,10 +101,10 @@ class Reddit(object):
 
                 # sleep for a quarter of the time to attempt a faster request
                 elapsed = time.time() - start_time
-                sleep_length = self.duplicate_factor * (self.actual_request_rate - elapsed)
+                sleep_length_duplicate = self.duplicate_factor * (self.actual_request_rate - elapsed)
 
-                print("[sleep] = " + str(sleep_length))
-                time.sleep(sleep_length)
+                print("[sleep] = " + str(sleep_length_duplicate))
+                time.sleep(sleep_length_duplicate)
                 self.duplicate_check = True
                 break
             else:
@@ -118,6 +112,7 @@ class Reddit(object):
                 try:
                     cursor.execute(self.sql_insert, datetime.now(), entry.date_time, entry.user, entry.url, entry.title)
                 except pyodbc.DatabaseError as e:
+                    self.insert_failure_check = True
                     insert_success = False
                     email_text = "title = " + entry.title + "\nposted = " + str(entry.date_time) + \
                                  "\nuser = " + entry.user + "\nurl = " + entry.url + \
@@ -138,6 +133,4 @@ class Reddit(object):
         del self.email_messages
         self.reddit = self.email_messages = list()
         self.duplicate_check = False
-
-    # def insert_posts(self):
-    #
+        self.insert_failure_check = False

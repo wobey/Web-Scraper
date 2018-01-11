@@ -1,6 +1,6 @@
 # Author: John Fitzgerald
 # Title: reddit_collector.py
-# Date Modified: 12/14/17
+# Date Modified: 12/27/17
 # Description: Leave script running to parse a subreddit's new posts, and insert them into a database.
 # An email is sent out if the insert fails.
 from bs4 import BeautifulSoup
@@ -43,8 +43,10 @@ def get_valid_user_input(input_values, user_input_strings, user_input_options):
     return input_values
 
 
-def send_email(domain, pwd, _from, _to, message, title, posted):
-    message.attach(text.MIMEText("title = " + title + "\nposted = " + str(posted), 'plain'))
+def send_email(domain, pwd, _from, _to, message, value):
+    post_text = "title = " + value.title + "\nposted = " + str(value.date_time) + "\nuser = " + value.user + "\nurl = " \
+                + value.url + "\ncurrent time = " + str(datetime.now())
+    message.attach(text.MIMEText(post_text, 'plain'))
     message_text = message.as_string()
 
     server = smtplib.SMTP_SSL(domain)
@@ -85,6 +87,9 @@ def main():
                             "Chrome/61.0.3163.100 Safari/537.36",
                "Accept":"text/html,application/xhtml+xml,application/xml"
                         ";q=0.9,image/webp,image/apng,*/*;q=0.8"}
+
+    database = 'Collector'
+    username = 'Wobey'
 
     minutes = 60.0
     seconds = 60.0
@@ -141,21 +146,21 @@ def main():
             title = date_time = user = url = "null"
 
         # initialize connection to database using installed ODBC SQL Server driver
-        database = 'Collector'
-        username = 'Wobey'
-        password = db_pwd
+        # TODO try except for connection errors (ask to re-enter password)
         cnxn = pyodbc.connect(
-            'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+            'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + db_pwd)
         cursor = cnxn.cursor()
 
         # insert posts into database
         for count, (key, value) in enumerate(posts.posts.items()):
+            insert_success = True
             sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
             cursor.execute(sql_exists, value.date_time, value.user)
             row = cursor.fetchall()
 
             # because r/Seattle/new orders postings by time, the first duplicate should trigger a break
             if len(row) >= 1:
+            # if False:
                 duplicate_count += 1
                 print("[duplicate " + str(duplicate_count) + "] = " + str(row))
 
@@ -176,19 +181,21 @@ def main():
                 try:
                     cursor.execute(sql_insert, datetime.now(), value.date_time, value.user, value.url, value.title)
                 except pyodbc.DatabaseError as e:
-                    send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value.title, value.date_time)
-                    raise e("Insert failed = " + str(value.title))
+                    insert_success = False
+                    send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value)
+                    print("\n*****  [insert failed] = " + e.args[1] + "\n" + str(value.date_time) + "\n\t" + str(value.title)
+                          + "\n\t" + value.user + "\n\t" + value.url + "\n")
 
-                insert_count += 1
-                print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
-                print("\t" + value.title)
+                if insert_success is True:
+                    insert_count += 1
+                    print("[insert " + str(insert_count) + "] = " + str(datetime.now()) + "\n\t" + value.title + "\n" + value.url)
 
-            # trigger email if the commit was unsuccessful
-            try:
-                cnxn.commit()
-            except pyodbc.DatabaseError as e:
-                send_email(email_domain, email_pwd, email_address_from, email_address_to, message, value.title, value.date_time)
-                raise e('Commit failed.')
+            cnxn.commit()
+
+        try:
+            cnxn.close()
+        except pyodbc.DatabaseError as e:
+            print("\n*****  [insert failed] = " + e.args[1])
 
         elapsed = time.time() - start_time
         if elapsed < actual_request_rate and duplicate_check is False:

@@ -82,6 +82,10 @@ def main():
                "Accept":"text/html,application/xhtml+xml,application/xml"
                         ";q=0.9,image/webp,image/apng,*/*;q=0.8"}
 
+    database = 'Collector'
+    username = 'Wobey'
+    password = db_pwd
+
     minutes = 10.0
     seconds = 60.0
     jitter = 0.17
@@ -100,8 +104,43 @@ def main():
 
     total_run_start_time = time.time()
 
+
+
+    # # insert manually
+    # # create weather from 9am - 12pm for Dec 25th (18 entries)
+    # date_time_array_9_12pm = list()
+    # date_time_array_9_12pm.append(datetime(2018, 1, 1, 16, 23, 0))
+    # count = 1
+    # while count <= 11:
+    #     date_time_array_9_12pm.append(date_time_array_9_12pm[count - 1] + timedelta(minutes=10))
+    #     count += 1
+    #
+    # print(str(len(date_time_array_9_12pm)))
+    # print(date_time_array_9_12pm)
+    #
+    # cnxn = pyodbc.connect(
+    #     'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+    # cursor = cnxn.cursor()
+    #
+    # wind = 6
+    # temps = (["41"] * 3) + (["40"] * 3) + (["39"] * 3) + (["38"] * 1) + (["37"] * 2)
+    # phrases = (["Fair"] * 4) + (["Clear"] * 8)
+    #
+    # sql_insert = textwrap.dedent("""
+    #                             INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
+    #                                 VALUES (?, ?, ?, ?, ?);""")
+    #
+    # for count, entries in enumerate(date_time_array_9_12pm):
+    #     cursor.execute(sql_insert, datetime.now(), date_time_array_9_12pm[count], temps[count], wind, phrases[count])
+    #
+    # cnxn.commit()
+    # cnxn.close()  # set pooling to close to ACTUALLY close connection? [pyodbc.pooling = False]
+
+
+
+
     while True:
-        print("\n\t\tTOTAL RUNTIME = " + str(time.time() - total_run_start_time))
+        print("\n\t\tTOTAL RUNTIME (hours) = " + str((time.time() - total_run_start_time) / 3600) + "\n")
 
         start_time = time.time()
 
@@ -110,6 +149,7 @@ def main():
         bs_obj = BeautifulSoup(req.text, "lxml")
         div_classes = bs_obj.find_all(('div', 'p'), re.compile(r'today_nowcard-(temp)|(phrase)|(sidecar)|(timestamp)'))
 
+        insert_success = True
         date_time = temp = wind = phrase = "null"
 
         for i in range(0, len(div_classes)):
@@ -136,9 +176,6 @@ def main():
             if wind_match:
                 wind = wind_match.group(1)
                 wind = re.sub('[^0-9]', '', wind)
-                # handles wind being 700,000+ MPH bug
-                if wind == "null":
-                    wind = "0"
             if phrase_match:
                 phrase = phrase_match.group(1)
 
@@ -148,9 +185,10 @@ def main():
             time.sleep(actual_request_rate)
             continue
 
-        database = 'Collector'
-        username = 'Wobey'
-        password = db_pwd
+        # handles wind being 700,000+ MPH bug
+        if wind == "null":
+            wind = "0"
+
         cnxn = pyodbc.connect(
             'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
         cursor = cnxn.cursor()
@@ -158,13 +196,12 @@ def main():
         sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
         print("\n[scraped HTML] = " + str(date_time))
 
-        # insert weather into database
         try:
             cursor.execute(sql_exists, date_time)
         except pyodbc.DatabaseError as e:
             send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
                        date_time)
-            raise e("Insert failed = " + str(date_time))
+            print("\n*****  [check failed] = " + e.args[1] + "\n" + str(date_time))
 
         row = cursor.fetchall()
 
@@ -186,26 +223,22 @@ def main():
             try:
                 cursor.execute(sql_insert, datetime.now(), date_time, temp, wind, phrase)
             except pyodbc.DatabaseError as e:
+                insert_success = False
                 send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
                            date_time)
-                raise e("Insert failed = " + str(date_time))
+                print("\n*****  [insert failed] = " + e.args[1] + "\n" + str(date_time) + "\n" + temp + "\n"
+                      + str(wind) + "\n" + phrase)
 
-            insert_count += 1
-            print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
-            print("\t" + str(date_time))
-            print("\t" + temp)
-            print("\t" + wind)
-            print("\t" + phrase)
+            if insert_success is True:
+                insert_count += 1
+                print("[insert " + str(insert_count) + "] = " + str(datetime.now()))
+                print("\t" + str(date_time))
+                print("\t" + temp)
+                print("\t" + wind)
+                print("\t" + phrase)
 
-        date_time = temp = wind = phrase = "null"
-
-        # trigger email if the commit was unsuccessful
-        try:
-            cnxn.commit()
-        except pyodbc.DatabaseError as e:
-            send_email(email_domain, email_pwd, email_address_from, email_address_to, message, temp,
-                       date_time)
-            raise e('Commit failed.')
+        cnxn.commit()
+        cnxn.close()    # set pooling to close to ACTUALLY close connection? [pyodbc.pooling = False]
 
         elapsed = time.time() - start_time
         if elapsed < actual_request_rate:

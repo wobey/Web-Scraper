@@ -103,3 +103,6 @@ ENV/
 Web-Scraper.twb
 ~Web-Scraper__1488.twbr
 *.twb
+Collector_guest_Words.tsv
+Collector_guest_Weather.tsv
+Collector_guest_Posts.tsv

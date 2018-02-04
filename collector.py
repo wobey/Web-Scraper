@@ -120,8 +120,8 @@ def main():
     user_input_options = [r"weather|reddit", "",
                           r"(.+)", r"(.+)", r"[^@]+@[^@]+\.[^@]+", r"[^@]+@[^@]+\.[^@]+", r"(.+)", r"(.+)"]
     user_input_strings = [please_str + "collector type: ", please_str + "url (scraping): ", please_str + "url (database): ",
-                          please_str + "email (domain): ", please_str + "email (from): ", please_str + "email (to): ",
-                          please_str + "email (password): ", please_str + "database (password): "]
+                          please_str + "email domain: ", please_str + "email (from): ", please_str + "email (to): ",
+                          please_str + "email password: ", please_str + "database password: "]
 
     # TODO store website url
 
@@ -138,7 +138,9 @@ def main():
 
     database = 'Collector'
     username = 'Wobey'
-    odbc_credentials = 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url +\
+    # odbc_credentials = 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url +\
+    #                    ';DATABASE=' + database + ';UID=' + username + ';PWD=' + db_pwd
+    odbc_credentials = 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + \
                        ';DATABASE=' + database + ';UID=' + username + ';PWD=' + db_pwd
     total_run_start_time = time.time()
 

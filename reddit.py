@@ -28,9 +28,9 @@ class Reddit(object):
         self.comment_url = "r/Seattle/comments/"
         self.url_regex = r"^https://reddit.com/r/([0-9a-z]+)"
 
-        self.sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Posts WHERE datetime_posted = (?) and username = (?);""")
+        self.sql_exists = textwrap.dedent("""SELECT * FROM Collector.dbo.Posts WHERE datetime_posted = (?) and username = (?);""")
         self. sql_insert = textwrap.dedent("""
-                INSERT INTO Collector.guest.Posts(datetime_added, datetime_posted, username, url_path, title)
+                INSERT INTO Collector.dbo.Posts(datetime_added, datetime_posted, username, url_path, title)
                     VALUES (?, ?, ?, ?, ?);""")
 
         self.minutes = 60.0

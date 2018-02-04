@@ -26,9 +26,9 @@ class Weather(object):
         self.website_url = "https://weather.com/weather/today/l/USWA0395:1:US"
         self.url_regex = r"^https://weather.com/weather/today/l/([0-9A-Z]+):1:US"
 
-        self.sql_exists = textwrap.dedent("""SELECT * FROM Collector.guest.Weather WHERE datetime_posted = (?);""")
+        self.sql_exists = textwrap.dedent("""SELECT * FROM Collector.dbo.Weather WHERE datetime_posted = (?);""")
         self. sql_insert = textwrap.dedent("""
-            INSERT INTO Collector.guest.Weather(datetime_added, datetime_posted, temp, wind, phrase)
+            INSERT INTO Collector.dbo.Weather(datetime_added, datetime_posted, temp, wind, phrase)
                 VALUES (?, ?, ?, ?, ?);""")
 
         self.minutes = 10.0
@@ -100,8 +100,15 @@ class Weather(object):
     def insert(self, start_time, cnxn, cursor):
         for count, entry in enumerate(self.weather):
             insert_success = True
-            cursor.execute(self.sql_exists, entry.date_time)
-            row = cursor.fetchall()
+            # print("This is the date type = " + str(type(entry.date_time)))
+            # print("This is the date = " + str(entry.date_time))
+            if entry.date_time != "null":
+                datetime_from_string = datetime.strptime(str(entry.date_time), '%Y-%m-%d %H:%M:%S')
+                # print("This is the datetime2String = " + str(datetime_from_string))
+                cursor.execute(self.sql_exists, datetime_from_string)
+                row = cursor.fetchall()
+            else:
+                continue
 
             elapsed = time.time() - start_time
             sleep_length_duplicate = self.duplicate_factor * (self.actual_request_rate - elapsed)
@@ -116,7 +123,7 @@ class Weather(object):
                 print("[sleep] = " + str(sleep_length_duplicate))
                 time.sleep(sleep_length_duplicate)
                 continue
-            elif entry.temp == "null" or entry.date_time == "null":
+            elif entry.temp == "null":
                 self.insert_failure_check = True
                 self.duplicate_check = True
                 self.email_messages.append(email_text)

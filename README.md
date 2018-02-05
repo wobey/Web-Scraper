@@ -13,14 +13,14 @@ https://public.tableau.com/profile/john.fitzgerald7009#!/vizhome/Web-Scraper/rSe
 ### Requirements
 You will need: 
 1) Pyhton 3.6, 
-2) a Linux environment (haven't tested in Windows or Mac), 
+2) Linux environment (haven't tested in Windows or Mac), 
 3) BeautifulSoup, 
 4) PyODBC (and the appropraite drivers for your server), 
 5) smtplib (for automated email alerts), 
 6) the Requests library,
 7) and a database + appropriate tables (I will not provide a guide for that).
 
-collector.py will require you to modify some hard coded variables in the main function:
+collector.py will require you to modify these hard coded variables in the main function after you setup your database and ODBC driver:
 ```python
 database = 'database'
 username = 'username'
@@ -36,7 +36,7 @@ After the environments have been set up, and the scripts are executed (as shown 
 4) parse with regular expression to determine data, 
 5) establish ODBC connection to database,
 6) insert data into table if not a duplicate,
-7) display to user: scraped data, duplicate or insert, and the amount of sleep until next loop (seconds).
+7) display: scraped data, duplicate or insert, and the amount of sleep until next loop (seconds).
 
 Below are the command line arguments for each of the two scripts:
 
@@ -45,7 +45,7 @@ Below are the command line arguments for each of the two scripts:
 python3 collector.py reddit https://reddit.com/r/Seattle/new <your database> <your email server> <from email> <to email>
 ```
 
-### Seattle weather collector (runs about ever ten minutes)
+### Seattle weather collector (runs about every ten minutes)
 ```
 python3 collector.py weather https://weather.com/weather/today/l/USWA0395:1:US <your database> <your email server> <from email> <to email>
 ```

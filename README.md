@@ -11,21 +11,32 @@ https://public.tableau.com/profile/john.fitzgerald7009#!/vizhome/Web-Scraper/rSe
 
 # Getting Started
 You will need: 
-  Pyhton 3.6, 
-  a Unix environment (haven't tested in Windows or Mac), 
-  BeautifulSoup, 
-  PyODBC (and the appropraite drivers for your server), 
-  smtplib (email alerts), 
-  and the Requests library. 
+1) Pyhton 3.6, 
+2) a Linux environment (haven't tested in Windows or Mac), 
+3) BeautifulSoup, 
+4) PyODBC (and the appropraite drivers for your server), 
+5) smtplib (for automated email alerts), 
+6) the Requests library,
+7) and a database + appropriate tables (I will not provide a guide for that).
 
 collector.py will require you to modify some hard coded variables in the main function:
-```
+```python
 database = 'database'
 username = 'username'
 odbc_credentials = 'DRIVER={ODBC Driver 13 for SQL Server};SERVER=' + db_url + \
                        ';DATABASE=' + database + ';UID=' + username + ';PWD=' + db_pwd
 ```
-Below are the command line arguments for each of the two scripts that should run simultaneously:
+
+After the environments have been set up, and the scripts are executed (as shown below), the basic loop logic is as follows:
+1) display overall program execution time (hours),
+2) http request to website, 
+3) parse out relevant HTML tags from request, 
+4) parse with regular expression to determine data, 
+5) establish ODBC connection to database,
+6) insert data into table if not a duplicate,
+7) display to user: scraped data, duplicate or insert, and the amount of sleep until next loop (seconds).
+
+Below are the command line arguments for each of the two scripts:
 
 # r/Seattle/new collector (runs about every hour)
 ```

@@ -43,7 +43,6 @@ class Reddit(object):
         self.duplicate_count = 0
         self.insert_count = 0
 
-        # TODO how to properly initialize an empty???
         self.div_classes = None
         self.duplicate_check = False
         self.insert_failure_check = False

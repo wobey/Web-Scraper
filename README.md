@@ -5,7 +5,7 @@ Currently the scraper has only been tested against these two websites:
 https://www.reddit.com/r/Seattle/new --- https://weather.com/weather/today/l/USWA0395:1:US
 
 # Tableau Dashboard of Scraped Data
-A view of the scraper's data can be accessed in this Tableau dashboard. Single days are selected through a scroll bar at the top of the dashboard. Each day categorizes Reddit posts by their corresponding weather phrase, and orders the posts by temperature. The user can highlight the post's title to see further inforamtion on the post and correlated weather. The user may also click the title to be taken to the post's url.
+I created a Tableau Dashboard (an interactive visual) of the data I scraped using these scripts. Single days are selected through a scroll bar at the top of the dashboard. Each day categorizes Reddit posts by their corresponding weather phrase, and orders the posts by temperature. The user can highlight the post's title to see further inforamtion on the post and correlated weather. The user may also click the title to be taken to the post's url.
 
 https://public.tableau.com/profile/john.fitzgerald7009#!/vizhome/Web-Scraper/rSeattlevs_Weather
 

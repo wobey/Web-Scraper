@@ -150,28 +150,33 @@ def main():
         start_time = time.time()
 
         # get HTML request
-        req = session.get(collector_obj.website_url, headers=headers)
-        bs_obj = BeautifulSoup(req.text, "lxml")
+        try:
+            req = session.get(collector_obj.website_url, headers=headers)
+        except requests.exceptions.ConnectionError as e:
+            print(e)
+            time.sleep(random.randint(60, 120))
+        else:
+            bs_obj = BeautifulSoup(req.text, "lxml")
 
-        collector_obj.set_tag(bs_obj)
-        collector_obj.store_scraped_html()
+            collector_obj.set_tag(bs_obj)
+            collector_obj.store_scraped_html()
 
-        cnxn = pyodbc.connect(odbc_credentials)
-        cursor = cnxn.cursor()
+            cnxn = pyodbc.connect(odbc_credentials)
+            cursor = cnxn.cursor()
 
-        collector_obj.insert(start_time, cnxn, cursor)
+            collector_obj.insert(start_time, cnxn, cursor)
 
-        # send insert-error emails
-        if collector_obj.insert_failure_check is True:
-            for message_text in collector_obj.email_messages:
-                print(message_text)
-                send_email(email_domain, email_from, email_to, email_pwd, message, message_text)
+            # send insert-error emails
+            if collector_obj.insert_failure_check is True:
+                for message_text in collector_obj.email_messages:
+                    print(message_text)
+                    send_email(email_domain, email_from, email_to, email_pwd, message, message_text)
 
-        cnxn.close()
+            cnxn.close()
 
-        elapsed = time.time() - start_time
-        sleep_on_no_duplicate(elapsed, collector_obj)
-        collector_obj.finish()
+            elapsed = time.time() - start_time
+            sleep_on_no_duplicate(elapsed, collector_obj)
+            collector_obj.finish()
 
 
 if __name__ == "__main__":

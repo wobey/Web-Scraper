@@ -108,3 +108,4 @@ Collector_guest_Weather.tsv
 Collector_guest_Posts.tsv
 legacy/
 *.pyproj
+*.sln

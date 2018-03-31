@@ -1,5 +1,5 @@
 # Web-Scraper
-This Python web scraper is designed to parse HTML tags, convert them into relevant data, and insert them into a database. The project's original intention was to correlate Reddit's r/Seattle subreddit postings with Seattle's weather conditions. I have only tested this with Python 3.6 and Ubunutu 16.04.
+[This Python web scraper is designed to parse HTML tags, convert them into relevant data, and insert them into a database. The project's original intention was to correlate Reddit's r/Seattle subreddit postings with Seattle's weather conditions. I have only tested this with Python 3.6 and Ubunutu 16.04.
 
 Currently the scraper has only been tested against these two websites:
 * https://www.reddit.com/r/Seattle/new
